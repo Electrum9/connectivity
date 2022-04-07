@@ -5,8 +5,10 @@
 import queue as q
 import itertools as it
 import numpy as np
-import matplotlib
-import cv2
+import matplotlib.pyplot as plt
+from cv2 import cv2
+import sys
+import os
 
 def connected_comp(arr, neighbors=None):
     """
@@ -19,14 +21,16 @@ def connected_comp(arr, neighbors=None):
         near vicinity (+/- 1 offset in each dimension).
         """
         dim = len(arr.shape)
-        offsets = filter(all, it.product(*it.repeat(range(-1,2),dim)))
+        offsets = it.product(*it.repeat(range(-1,2),dim))
         # the predicate (all) given to filter() rejects 0-tuples which would have no offset
         lower = np.array([0,0,0])
         upper = np.array(arr.shape)
         for t in offsets:
             nb = point + t
-            if np.all(lower <= nb) and np.all(nb < upper):
-                yield tuple(point + t)
+            # #print(f"{nb=}")
+            if np.all(lower < nb) and np.all(nb < upper):
+                #print(f"{nb=}")
+                yield tuple(nb)
 
     if neighbors is None:
         neighbors = nearby
@@ -46,16 +50,41 @@ def connected_comp(arr, neighbors=None):
             while not queue.empty():
                 (p, i) = queue.get()
                 for n in neighbors(np.array(i)):
+                    # #print("on neighbor")
                     focus = arr[n]
                     if focus == p: # pixel being focused on is same kind as p
+                        # #print("match found")
                         arr[n] = curr_label
                         queue.put((focus, n))
+                        # #print(f"{queue.qsize()=}")
+                #print("\n")
             curr_label += 1
 
-    return arr, curr_label - (max_class + 1)
+    return arr, curr_label - max_class
 
-def main():
-    pass
+def main(file):
+    arr = np.load(file)
+    (name, _) = file.split('.')
+
+    if not os.path.isdir(name): # check if there is a folder for the input images and output images
+        os.makedirs(name)
+        os.makedirs(name+"/input/")
+        os.makedirs(name+"/output/")
+
+    for i in range(arr.shape[-1]): # saving input images
+        # cv2.imwrite(f"{name}/input/{name}-{i}-in.png", arr[:,:,i])
+        plt.imsave(f"{name}/input/{name}-{i}-in.png", arr[:,:,i], cmap="plasma")
+
+    (out, num) = connected_comp(arr)
+    #print(f"{num=}")
+
+    for i in range(arr.shape[-1]): # saving input images
+        plt.imsave(f"{name}/output/{name}-{i}-out.png", out[:,:,i], cmap="plasma")
+        # final = cv2.applyColorMap(out[:,:,i], cv2.COLORMAP_HOT)
+        # cv2.imwrite(f"{name}/output/{name}-{i}-out.png", final)
+
+    return
 
 if __name__ == "__main__":
-    main()
+    fname = sys.argv[1]
+    main(fname)
